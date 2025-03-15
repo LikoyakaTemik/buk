@@ -1,0 +1,10 @@
+{
+    "title": "go",
+    "dependings": ["none"],
+    "resource": {
+        "source": "https://go.dev/dl",
+        "files": ["go1.24.1.linux-amd64.tar.gz"],
+        "exec_start": "script",
+        "checksum": "checksum1"
+    }
+}
