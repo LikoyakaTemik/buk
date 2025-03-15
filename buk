@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# Select action of manager
+
+case $1 in
+    "install")
+        # Read package names from the input stream
+        # Process the collected package names
+        for package in $@; do
+            if [[ $package == "install" || $package == "remove" ]]; then
+                continue
+            else
+                isExist=$(ls /etc/.buk/packages | grep -e ^$package$)
+                if [ -z "$isExist" ]; then
+                    echo "Package $package wasn't found"
+                else
+                    manifest=/etc/.buk/packages/$package
+                    depengings=$(grep -oP '"dependings":\s*\[\K[^\]]+' "$manifest" | sed 's/"//g' | tr ',' '\n')
+                    echo "$depengings" | while read -r depenging; do
+                    echo $depenging
+                        if [ $depenging == "none" ]; then
+                            break
+                        fi
+                        buk install $depenging
+                    done
+                    mkdir /etc/$package
+                    # Parse manifest_example.json
+                    # Extract title
+                    title=$(grep -oP '"title":\s*"\K[^"]+' "$manifest")
+                    # Extract source
+                    source=$(grep -oP '"source":\s*"\K[^"]+' "$manifest")
+                    # Extract exec_start
+                    exec_start=$(grep -oP '"exec_start":\s*"\K[^"]+' "$manifest")
+                    # Extract checksum
+                    checksum=$(grep -oP '"checksum":\s*"\K[^"]+' "$manifest")
+                    # Extract files
+                    files=$(grep -oP '"files":\s*\[\K[^\]]+' "$manifest" | sed 's/"//g' | tr ',' '\n')
+                    # Loop through the files and print them
+                    echo "$files" | while read -r file; do
+                        echo "Downloading $file"
+                        wget -P /etc/$package/$file $source/$file
+                    done
+                    echo $exec_start
+                    wget -P /etc/$package/$exec_start $source/$exec_start
+                    echo "Checking checksum"
+                    if [ $(md5sum /etc/$package/$exec_start | awk '{print $1}') == $checksum ]; then
+                        echo "Checksum is correct"
+                        chmod +x /etc/$package/$exec_start
+                        echo "Starting $title"
+                        /etc/$package/$exec_start
+                    else
+                        echo "Checksum is incorrect: $(md5sum /etc/$package/$exec_start)"
+                    fi
+                fi
+            fi
+        done
+    ;;
+    "remove")
+        # Read package names from the input stream
+        for package in $@; do
+            if [[ $package == "install" || $package == "remove" ]]; then
+                continue
+            else
+                isExist=$(ls /etc/ | grep -e ^$package$)
+                if [ -z "$isExist" ]; then
+                    echo "Package $package wasn't found"
+                else
+                    rm -rf /etc/$package
+                    echo "Package $package was removed"
+                fi
+            fi
+        done
+    ;;
+    *)
+        # Code to handle other cases
+        echo "Invalid option"
+    ;;
+esac
